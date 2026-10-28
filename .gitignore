@@ -226,3 +226,4 @@ __marimo__/
 data/
 checkpoints/
 wandb/
+extras/
