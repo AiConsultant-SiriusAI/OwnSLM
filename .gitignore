@@ -218,3 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+
+*.npy
+*.txt.bak
+data/
+checkpoints/
+wandb/
