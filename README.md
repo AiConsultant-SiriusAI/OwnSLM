@@ -1,7 +1,7 @@
 # OwnSLM
 
-A 22.7M-parameter GPT-style language model built from scratch that writes short children's
-stories. The BPE tokenizer and the Transformer are written by hand; everything else uses PyTorch.
+A 22.7M-parameter GPT-style language model that writes short children's
+stories.
 
 ## Generate a story
 
