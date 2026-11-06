@@ -10,12 +10,13 @@ p.add_argument("--steps", type=int, default=300)
 p.add_argument("--out-dir", default="checkpoints")
 p.add_argument("rest", nargs=argparse.REMAINDER, help="extra args passed through to train.py")
 args = p.parse_args()
+rest = args.rest[1:] if args.rest[:1] == ["--"] else args.rest  # argparse keeps the "--"
 
 for lr in args.lrs:
     tag = f"{args.out_dir}/pilot_{lr:g}"
     print(f"\n### lr {lr:g}")
     subprocess.run(
         [sys.executable, "train.py", "--lr", str(lr), "--steps", str(args.steps),
-         "--eval-every", "50", "--ckpt-every", "0", "--out", tag] + args.rest,
+         "--eval-every", "50", "--ckpt-every", "0", "--out", tag] + rest,
         check=True,
     )
