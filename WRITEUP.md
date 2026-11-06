@@ -247,16 +247,93 @@ this: there, the best stable rate and the edge of stability were within a factor
 
 - Final validation loss: **[TODO]**, perplexity `e^loss` = **[TODO]**.
 - Loss curve against steps and against time: **[TODO]** — `scripts/plots.py --x step` and `--x seconds`.
-- Three stories of 256+ tokens from "Once upon a time" at two temperature/top-p settings:
-  **[TODO]** — e.g. `--temperature 0.8 --top-p 0.9` and `--temperature 1.0 --top-p 0.95`.
+### Three stories from "Once upon a time"
 
-**Question 10 — how fluent are the stories? [TODO]**
-Two things to look for, and to back with your own samples: (a) **temperature and top-p** — low
-temperature gives grammatical but repetitive text that loops on one phrase, high temperature gives
-variety but loses the thread and invents words; (b) **the 256-token context** — the model cannot
-see further back than 256 tokens, so a character introduced early is forgotten by the end, and
-long stories drift off topic rather than resolve. Say which failures are *bugs you found and fixed*
-and which are *limits of a 22.7M model trained on 41M tokens*; the brief grades that distinction.
+All generated on CPU from `release/`, `--max-new-tokens 256`. Seeds 1, 2, 3 at
+`--temperature 0.8 --top-p 0.9`:
+
+> Once upon a time, there was a little girl named Lucy. She loved to play outside in the sun. One
+> day, she saw a big tree with a hole in it. Lucy wanted to see what was inside. Lucy called her
+> friend, Tim, to come over. "Tim, come look at this hole!" she said. Tim came over and they both
+> looked inside. They found a little bird. The bird was lost and scared. Tim and Lucy decided to
+> help the bird. They all worked together to find the bird's home. They found the bird's home. The
+> bird was happy and thanked them. From that day on, Lucy and Tim were best friends.
+
+> Once upon a time, there was a little girl named Mia. Mia had a friend named Tom. They liked to
+> play together in the park. One day, they went to the park to play. At the park, they saw a big
+> tree. Mia and Tom sat under the tree and watched the leaves fall. They were having fun. But then,
+> something unexpected happened. The leaves fell on the ground and broke. Mia and Tom looked at
+> each other. They felt sad. They decided to fix the broken leaves and make it look like new. They
+> worked together to fix the leaves. Now, Mia had a new friend. They played on the swings and the
+> slide all day.
+
+> Once upon a time, there was a little girl named Lucy. She had a toy named Mr. Bear. Mr. Bear was
+> very special. Lucy and Mr. Bear were best friends. One day, Lucy and Mr. Bear went for a walk.
+> They found a big tree. Lucy said, "Mr. Bear, look at the tree. Can you help me find a friend?"
+> Mr. Bear nodded and said, "Yes, I will help you." Lucy and Mr. Bear walked together. They looked
+> for Mr. Bear. They found a big tree. Lucy tried to climb the tree, but she was not good at it.
+> Mr. Bear was sad. He wanted to find a friend to help her. Mr. Bear saw Lucy and the shiny tree.
+> She told her about the tree. Lucy felt bad. She said, "I am sorry, Mr. Bear. I will not do it
+> again." Lucy smiled and said, "I will help you." And just like that, Mr. Bear started to fly. The
+> next day, Lucy and Mr. Bear went to see the tree. They found a nice spot under a tree. Lucy felt
+> happy and not frustrated anymore. She said, "Thank you, Mr. Bear. You are a good friend
+
+The same prompt at `--temperature 1.0 --top-p 0.95`, seeds 1 and 2:
+
+> Once upon a time, there was a little boy named Tim. Tim had a toy gun. He liked to play with it
+> all day. One day, Tim's mom told him that it was time to eat his food when dinner. But Tim was
+> still sad. Tim's mom said, "Tim, you must share your toys with your friends when you feel good."
+> So, Tim and his mom went to the kitchen to find the snack. They looked everywhere, but the snack
+> was gone. Tim felt sad. The next morning, Tim's mom had an idea. She took his big toy away from
+> Tim. Tim didn't eat it at all. But, when his mom brought the snack back, Tim told his mom what
+> happened. They went outside to share the snack together. Tim learned that sharing made him
+> friends and had fun.
+
+> Once upon a time, in a small town, there lived a boy named Tim. Tim had a toy he loved a lot. He
+> would play with it all day long. One day, it was very dirty. Tim was sad and could not play with
+> his toy. Tim's mom saw what happened and had an idea. She said, "Let's make you clean your toy,
+> Tim." Tim looked at the dirty toy and said, "Okay, Mom." But when Tim tried to clean it,
+> something unexpected happened. A little mouse jumped out of the toy and started to make messy
+> pictures on the wall. Tim tried to guess what was inside, but it was not easy. He put his toy in
+> a toy box and pushed it over the wall. The wall became clean and soft. Tim was happy to have his
+> clean crayons and make his new toy. Tim's mom saw how much fun it was and smiled. She said, "You
+> did a great job, Tim!" Tim learned that sometimes, even if it's dirty, but it's important to
+> always help others, and it made them smile when they saw them.
+
+**Two of these are shorter than 256 tokens (135 and 136) and that is not truncation.** The model
+emitted `<|endoftext|>` and `generate()` stopped, which is the behaviour the brief asks for.
+Padding them out to 256 would mean ignoring the model's own end-of-story signal, so I report the
+real lengths instead. Only the third 0.8 sample ran the full 256, and it is the one that visibly
+breaks down — which is the point of the next answer.
+
+**Question 10 — how fluent are the stories?**
+
+Sentence by sentence they are clean. Grammar, agreement, punctuation, quoted dialogue and the
+TinyStories register ("One day...", "From that day on...") are all correct; I could not find a
+malformed sentence in any sample. What fails is everything above the sentence.
+
+**Coherence decays with length, sharply.** The two stories that end on `<|endoftext|>` at about
+135 tokens are genuinely good: Lucy finds a bird, the friends return it, the story resolves. The
+one that runs the full 256 falls apart in the second half — "They looked for Mr. Bear" while
+Mr. Bear is the companion doing the looking, a "shiny tree" that was never shiny, an apology for
+nothing, and then "Mr. Bear started to fly". The model holds a plot for about one short story's
+worth of tokens and then drifts.
+
+**Temperature and top-p behave as expected.** At 0.8/0.9 the text is safe and slightly generic
+— every story is a girl or boy with a toy or a tree, and seeds 1 and 3 both open with "a little
+girl named Lucy". At 1.0/0.95 the vocabulary widens ("in a small town", a mouse making "messy
+pictures on the wall") and so does the incoherence: "it was time to eat his food when dinner" is
+ungrammatical, and the second sample's moral — "even if it's dirty, but it's important to
+always help others" — is a grammatical sentence that means nothing. Greedy decoding
+(`--temperature 0`) is the other extreme: fluent, flat, and it re-uses "She wanted to show her mom
+the rock" twice in 80 tokens.
+
+**Which of these are bugs and which are limits.** None of the above is a bug. The failures are all
+the expected shape for a 22.7M-parameter model trained on 41M tokens with a 256-token context:
+limited world knowledge, no mechanism to track entity state, and a context window barely longer
+than the stories themselves. The bugs I did find were caught earlier and are listed in the honest
+summary — they showed up as a loss that would not fall, not as bad prose. The distinction
+matters because the fix for the drift is more parameters and more tokens, not a code change.
 
 ---
 
@@ -267,10 +344,21 @@ The acceptance test passes on the smoke-test release (fresh `release/` built by
 byte-identical story on two consecutive runs, and `inference.py` imports only `minilm.generate`,
 `minilm.model` and `minilm.tokenizer` — nothing from `train.py`.
 
-**Question 11 — CPU generation speed and the KV cache. [TODO for the real model]**
+**Question 11 — CPU generation speed and the KV cache.**
 
-Measured on the smoke-test model: 462–550 tokens/s on this laptop (Windows 11, CPU-only PyTorch
-2.15). Report your own number for the real 22.7M model generating 256 tokens.
+Measured on the released 22.7M model, Windows 11 laptop, CPU-only PyTorch, `--device cpu`:
+
+| tokens generated | time | rate |
+| --- | --- | --- |
+| 30 | 0.5 s | 63.8 tok/s |
+| 80 | 1.6 s | 49.1 tok/s |
+| 135 | 4.4 s | 30.5 tok/s |
+| 256 | 13.5 s | 18.9 tok/s |
+
+**The rate falls by 3.4× across a single 256-token generation, and that fall is the missing KV
+cache made visible.** Each step re-runs the whole model over the entire prefix, so the cost of step
+`n` grows with `n` and the average rate drops the longer the story gets. With a KV cache every step
+would cost the same and this column would be flat.
 
 The repeated work: with no cache, generating token `n` runs the whole model over all `n` tokens,
 but only the last position's output is used. Over 256 tokens that is
